@@ -82,10 +82,10 @@ namespace RHI
                 default: return shaderc_glsl_infer_from_source;
             }
         }
-        shaderc::SpvCompilationResult Compile(ShaderCCompiler* cmp, const ShaderSource& source, const CompileOptions& opt, CompilationResult& ret_val)
+        shaderc::SpvCompilationResult Compile(ShaderCCompiler* cmp, const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, CompilationResult& ret_val)
         {
             shaderc::SpvCompilationResult result;
-            auto sc_opt = static_cast<const ShaderCCompileOptions*>(&opt);
+            auto sc_opt = static_cast<const ShaderCCompileOptions*>(opt.get());
             auto kind = ShaderKind(source.stage);
             if(std::holds_alternative<std::filesystem::path>(source.source))
             {
@@ -116,7 +116,7 @@ namespace RHI
             ret_val.error = CompilationError::None;
             return result;
         }
-        CompilationResult Compiler::CompileToFile(const ShaderSource& source, const CompileOptions& opt, const std::filesystem::path& output)
+        CompilationResult Compiler::CompileToFile(const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, const std::filesystem::path& output)
         {
             CompilationResult ret_val;
             auto result = Compile(static_cast<ShaderCCompiler*>(this), source, opt, ret_val);
@@ -135,7 +135,7 @@ namespace RHI
             file.write((char*)zero, sizeof(uint32_t) * 4);
             return ret_val;
         }
-        [[nodiscard]] CompilationResult Compiler::CompileToBuffer(RHI::API api, const ShaderSource& source, const CompileOptions& opt, std::vector<char>& output)
+        [[nodiscard]] CompilationResult Compiler::CompileToBuffer(RHI::API api, const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, std::vector<char>& output)
         {
             CompilationResult ret_val;
             if(api != RHI::API::Vulkan)

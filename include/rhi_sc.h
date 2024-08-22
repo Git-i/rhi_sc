@@ -54,8 +54,8 @@ namespace RHI
             DECL_CLASS_CONSTRUCTORS(Compiler);
         public:
             static std::unique_ptr<Compiler> New();
-            [[nodiscard]] CompilationResult CompileToFile(const ShaderSource& source, const CompileOptions& opt, const std::filesystem::path& output);
-            [[nodiscard]] CompilationResult CompileToBuffer(RHI::API api, const ShaderSource& source, const CompileOptions& opt, std::vector<char>& output);
+            [[nodiscard]] CompilationResult CompileToFile(const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, const std::filesystem::path& output);
+            [[nodiscard]] CompilationResult CompileToBuffer(RHI::API api, const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, std::vector<char>& output);
         };
     }
 }

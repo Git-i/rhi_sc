@@ -9,6 +9,7 @@
 #include <iterator>
 #include <memory>
 #include <ranges>
+#include <shaderc/shaderc.h>
 #include <span>
 #include <variant>
 namespace RHI
@@ -87,6 +88,11 @@ namespace RHI
             shaderc::SpvCompilationResult result;
             auto sc_opt = static_cast<const ShaderCCompileOptions*>(opt.get());
             auto kind = ShaderKind(source.stage);
+            if(kind == shaderc_glsl_infer_from_source)
+            {
+                ret_val.error = CompilationError::InvalidStage;
+                ret_val.messages = "Invalid Shader Stage Specified"
+            }
             if(std::holds_alternative<std::filesystem::path>(source.source))
             {
                 auto& path = std::get<std::filesystem::path>(source.source);

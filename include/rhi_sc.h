@@ -17,7 +17,8 @@ namespace RHI
             None,
             NonExistentFile,
             Error,
-            APINotAvailable
+            APINotAvailable,
+            InvalidStage
         };
         struct CompilationResult
         {

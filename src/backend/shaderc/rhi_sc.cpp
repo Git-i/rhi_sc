@@ -8,7 +8,6 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
-#include <ranges>
 #include <shaderc/shaderc.h>
 #include <span>
 #include <variant>
@@ -91,7 +90,7 @@ namespace RHI
             if(kind == shaderc_glsl_infer_from_source)
             {
                 ret_val.error = CompilationError::InvalidStage;
-                ret_val.messages = "Invalid Shader Stage Specified"
+                ret_val.messages = "Invalid Shader Stage Specified";
             }
             if(std::holds_alternative<std::filesystem::path>(source.source))
             {
@@ -141,10 +140,10 @@ namespace RHI
             file.write((char*)zero, sizeof(uint32_t) * 4);
             return ret_val;
         }
-        [[nodiscard]] CompilationResult Compiler::CompileToBuffer(RHI::API api, const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, std::vector<char>& output)
+        [[nodiscard]] CompilationResult Compiler::CompileToBuffer(RHI::API api, const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, std::vector<char>& output, bool memory_repr)
         {
             CompilationResult ret_val;
-            if(api != RHI::API::Vulkan)
+            if(memory_repr && api != RHI::API::Vulkan)
             {
                 ret_val.messages = "Only Vulkan API shaders supported";
                 ret_val.error = CompilationError::APINotAvailable;
@@ -154,8 +153,24 @@ namespace RHI
             if(ret_val.error != CompilationError::None) return ret_val;
 
             uint32_t spvSize = (result.end() - result.begin()) * sizeof(decltype(result)::element_type);
-            output.resize(spvSize);
-            std::memcpy(output.data(), result.begin(), spvSize);
+            uint32_t extraBytes = memory_repr ? 0 : sizeof(uint32_t) * 5;
+            output.resize(spvSize + extraBytes);
+            uint32_t offset = 0;
+            if(!memory_repr)
+            {
+                uint32_t spvSizeCpy = spvSize;
+                std::span spvSizeBytes = std::as_writable_bytes(std::span(&spvSizeCpy, 1));
+                if(std::endian::native != std::endian::little)
+                {
+                    std::reverse(spvSizeBytes.begin(), spvSizeBytes.end());
+                }
+                std::memcpy(output.data(), spvSizeBytes.data(), sizeof(uint32_t));
+            }
+            std::memcpy(output.data() + offset, result.begin(), spvSize);
+            if(!memory_repr)
+            {
+                std::memset(output.data() + offset + spvSize, 0, sizeof(uint32_t) * 4);
+            }
             return ret_val;
         }
     }

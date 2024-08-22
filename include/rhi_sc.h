@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 #include "Core.h"
+#include "FormatsAndTypes.h"
 #include "RootSignature.h"
 namespace RHI
 {
@@ -14,7 +15,15 @@ namespace RHI
         enum class CompilationError
         {
             None,
-            NonExistentFile
+            NonExistentFile,
+            Error,
+            APINotAvailable
+        };
+        struct CompilationResult
+        {
+            uint32_t warning_count = 0;
+            std::string messages;
+            CompilationError error;
         };
         enum class OptimizationLevel
         {
@@ -27,6 +36,7 @@ namespace RHI
             static std::unique_ptr<CompileOptions> New();
             void AddMacroDefinition(std::string_view name, std::optional<std::string_view> value);
             void SetOptimizationLevel(OptimizationLevel level);
+            void EnableDebuggingSymbols();
         };
         class ShaderSource
         {
@@ -44,8 +54,8 @@ namespace RHI
             DECL_CLASS_CONSTRUCTORS(Compiler);
         public:
             static std::unique_ptr<Compiler> New();
-            [[nodiscard]] CompilationError CompileToFile(const ShaderSource& source, const CompileOptions& opt, const std::filesystem::path& output);
-            void CompileToBuffer(const ShaderSource& source, const CompileOptions& opt, std::vector<char>& output);
+            [[nodiscard]] CompilationResult CompileToFile(const ShaderSource& source, const CompileOptions& opt, const std::filesystem::path& output);
+            [[nodiscard]] CompilationResult CompileToBuffer(RHI::API api, const ShaderSource& source, const CompileOptions& opt, std::vector<char>& output);
         };
     }
 }

@@ -1,0 +1,1 @@
+project('rhi_sc')

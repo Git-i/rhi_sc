@@ -46,3 +46,14 @@ int main()
 | ------ | ------------------------------------------ | ------- |
 | Vulkan | <span style="color:red">Not Planned</span> | Planned |
 | DX12   | <span style="color:red">Not Planned</span> | Planned |
+
+## Using DXC without Windows SDK (linux or some other reason)
+
+If you're on linux (or for some reason don't have dxc on windows), you should make sure the dxcompiler library and dxcapi, and WinAdapter header's are visible, this should be the case if you have the vulkan sdk, you can also place these files in the dxc_lib directory if you downloaded them from Mircrosoft's repo.
+
+## DXC sounds like work (on linux). why set it up?
+
+the DXC backend provides several benefits like:
+
+- DX12 support (windows only)
+- HLSL 2021

@@ -1,1 +1,1 @@
-option('backend', type:'combo', choices: ['dxc', 'shaderc'], value:'shaderc')
+option('compiler-backend', type:'combo', choices: ['dxc', 'shaderc'], value:'dxc')

@@ -30,7 +30,7 @@ namespace RHI
             DXCCompileOptions()
             {
             }
-            std::wstring StageToString(RHI::ShaderStage stg)
+            std::wstring StageToString(RHI::ShaderStage stg) const
             {
                 switch (stg)
                 {
@@ -44,7 +44,7 @@ namespace RHI
                     default: return L"";
                 }
             }
-            std::wstring OptimizationToString()
+            std::wstring OptimizationToString() const
             {
                 switch (level)
                 {
@@ -55,7 +55,7 @@ namespace RHI
                     case _3: return L"-O3";
                 }
             }
-            std::vector<std::wstring> AsArgs(RHI::ShaderStage stg)
+            std::vector<std::wstring> AsArgs(RHI::ShaderStage stg) const
             {
                 std::vector<std::wstring> args = {};
                 args.emplace_back(L"-T");
@@ -71,9 +71,10 @@ namespace RHI
                     args.emplace_back(L"-D");
                     args.emplace_back(macro.data());
                 }
+                args.push_back(L"-spirv");
                 return args;
             }
-            std::vector<const wchar_t*> AsRawArgs(std::vector<std::wstring>& args)
+            std::vector<const wchar_t*> AsRawArgs(std::vector<std::wstring>& args) const
             {
                 std::vector<const wchar_t*> raw;
                 for(auto& arg: args)
@@ -85,9 +86,13 @@ namespace RHI
         {
         public:
             CComPtr<IDxcCompiler3> compiler;
+            CComPtr<IDxcIncludeHandler> includeHandler;
+            CComPtr<IDxcUtils> utils;
             DXCCompiler()
             {
                 DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler));
+                DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&utils));
+                utils->CreateDefaultIncludeHandler(&includeHandler);
             }
         };
         std::unique_ptr<CompileOptions> CompileOptions::New()
@@ -119,61 +124,79 @@ namespace RHI
             auto opt = (DXCCompileOptions*)this;
             opt->level = level;
         }
-        /*
-        shaderc::SpvCompilationResult Compile(ShaderCCompiler* cmp, const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, CompilationResult& ret_val)
+        DxcBuffer MakeBuffer(IDxcBlobEncoding** enc, DXCCompiler* cmp, const ShaderSource& src)
         {
-            shaderc::SpvCompilationResult result;
-            auto sc_opt = static_cast<const ShaderCCompileOptions*>(opt.get());
-            auto kind = ShaderKind(source.stage);
-            if(kind == shaderc_glsl_infer_from_source)
+            DxcBuffer buff;
+            if(std::holds_alternative<std::filesystem::path>(src.source))
             {
-                ret_val.error = CompilationError::InvalidStage;
-                ret_val.messages = "Invalid Shader Stage Specified";
-            }
-            if(std::holds_alternative<std::filesystem::path>(source.source))
-            {
-                auto& path = std::get<std::filesystem::path>(source.source);
-                if(!std::filesystem::exists(path))
+                auto& path = std::get<std::filesystem::path>(src.source);
+                auto res = cmp->utils->LoadFile(to_wstring(path.string()).c_str(), nullptr, enc);
+                if(!SUCCEEDED(res))
                 {
-                    ret_val.error = CompilationError::NonExistentFile;
-                    ret_val.messages = "File passed in was not found";
-                    return result;
+                    memset(&buff, 0, sizeof(buff));
+                    return buff;
                 }
-                std::ifstream file(path);
-                std::string str;
-                str.resize(std::filesystem::file_size(path));
-                str.assign(std::istreambuf_iterator(file), std::istreambuf_iterator<char>());
-                result = cmp->compiler.CompileGlslToSpv(str, kind, path.c_str(), sc_opt->options);
-            }
+                buff.Size = (*enc)->GetBufferSize();
+                buff.Ptr = (*enc)->GetBufferPointer();
+                buff.Encoding = DXC_CP_ACP;
+            }  
             else
             {
-                auto& src = std::get<ShaderSource::StringSource>(source.source);
-                result = cmp->compiler.CompileGlslToSpv(src.shader.data(), src.shader.size(), kind, std::string(src.filename).c_str());
+                auto& str = std::get<ShaderSource::StringSource>(src.source);
+                buff.Ptr = str.shader.data();
+                buff.Size = str.shader.size();
+                buff.Encoding = DXC_CP_ACP;
             }
-            ret_val.messages = result.GetErrorMessage();
-            if(result.GetCompilationStatus() != shaderc_compilation_status_success)
+            return buff;
+        }
+        CComPtr<IDxcResult> Compile(DXCCompiler* cmp, const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, CompilationResult& ret_val)
+        {
+            auto sc_opt = static_cast<const DXCCompileOptions*>(opt.get());
+            auto args = sc_opt->AsArgs(source.stage);
+            CComPtr<IDxcBlobEncoding> enc;
+            auto buffer = MakeBuffer(&enc, cmp, source);
+            if(!buffer.Ptr) 
             {
                 ret_val.error = CompilationError::Error;
-                return result;
+                ret_val.messages = "Internal Error Occurred, Check that the filename is valid";
+                return nullptr;
             }
-            ret_val.error = CompilationError::None;
+            CComPtr<IDxcResult> result;
+            cmp->compiler->Compile(&buffer, sc_opt->AsRawArgs(args).data(), args.size(), cmp->includeHandler, IID_PPV_ARGS(&result));
             return result;
         }
         CompilationResult Compiler::CompileToFile(const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, const std::filesystem::path& output)
         {
             CompilationResult ret_val;
-            auto result = Compile(static_cast<ShaderCCompiler*>(this), source, opt, ret_val);
+            auto result = Compile(static_cast<DXCCompiler*>(this), source, opt, ret_val);
             if(ret_val.error != CompilationError::None) return ret_val;
-            
+            CComPtr<IDxcBlobUtf8> pErrors = nullptr;
+            result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&pErrors), nullptr);
+            if (pErrors != nullptr && pErrors->GetStringLength() != 0)
+                ret_val.messages = pErrors->GetStringPointer();
+            HRESULT status;result->GetStatus(&status);
+            if(FAILED(status))
+            {
+                ret_val.error = CompilationError::Error;   
+                return ret_val;
+            }
+            CComPtr<IDxcBlob> pShader = nullptr;
+            CComPtr<IDxcBlobWide> pShaderName = nullptr;
+            result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&pShader), &pShaderName);
+            if(!pShader)
+            {
+                ret_val.error = CompilationError::Error;   
+                return ret_val;
+            }
             std::ofstream file(output);
-            uint32_t spvSize = (result.end() - result.begin()) * sizeof(decltype(result)::element_type);
+            uint32_t spvSize = pShader->GetBufferSize();
             std::span spvSizeBytes = std::as_writable_bytes(std::span(&spvSize, 1));
             if(std::endian::native != std::endian::little)
             {
                 std::reverse(spvSizeBytes.begin(), spvSizeBytes.end());
             }
             file.write((char*)&spvSize, sizeof(spvSize));
-            file.write((const char*)result.begin(), spvSize);
+            file.write((const char*)pShader->GetBufferPointer(), spvSize);
             uint32_t zero[4] = {0,0,0,0};
             file.write((char*)zero, sizeof(uint32_t) * 4);
             return ret_val;
@@ -187,10 +210,29 @@ namespace RHI
                 ret_val.error = CompilationError::APINotAvailable;
                 return ret_val;
             }
-            auto result = Compile(static_cast<ShaderCCompiler*>(this), source, opt, ret_val);
+            auto result = Compile(static_cast<DXCCompiler*>(this), source, opt, ret_val);
             if(ret_val.error != CompilationError::None) return ret_val;
 
-            uint32_t spvSize = (result.end() - result.begin()) * sizeof(decltype(result)::element_type);
+            CComPtr<IDxcBlobUtf8> pErrors = nullptr;
+            result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&pErrors), nullptr);
+            if (pErrors != nullptr && pErrors->GetStringLength() != 0)
+                ret_val.messages = pErrors->GetStringPointer();
+            HRESULT status;result->GetStatus(&status);
+            if(FAILED(status))
+            {
+                ret_val.error = CompilationError::Error;   
+                return ret_val;
+            }
+            CComPtr<IDxcBlob> pShader = nullptr;
+            CComPtr<IDxcBlobWide> pShaderName = nullptr;
+            result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&pShader), &pShaderName);
+            if(!pShader)
+            {
+                ret_val.error = CompilationError::Error;   
+                return ret_val;
+            }
+
+            uint32_t spvSize = pShader->GetBufferSize();
             uint32_t extraBytes = memory_repr ? 0 : sizeof(uint32_t) * 5;
             output.resize(spvSize + extraBytes);
             uint32_t offset = 0;
@@ -203,14 +245,14 @@ namespace RHI
                     std::reverse(spvSizeBytes.begin(), spvSizeBytes.end());
                 }
                 std::memcpy(output.data(), spvSizeBytes.data(), sizeof(uint32_t));
+                offset = sizeof(uint32_t);
             }
-            std::memcpy(output.data() + offset, result.begin(), spvSize);
+            std::memcpy(output.data() + offset, pShader->GetBufferPointer(), spvSize);
             if(!memory_repr)
             {
                 std::memset(output.data() + offset + spvSize, 0, sizeof(uint32_t) * 4);
             }
             return ret_val;
         }
-        */
     }
 }

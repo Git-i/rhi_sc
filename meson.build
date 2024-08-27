@@ -19,7 +19,9 @@ elif get_option('compiler-backend') == 'dxc'
     lib_src += 'src/backend/dxc/rhi_sc.cpp'
     cc = meson.get_compiler('cpp')
     dxc_lib = cc.find_library('dxcompiler', dirs: meson.current_source_dir() /'dxc_lib/')
-    extra_includes += 'dxc_lib/'
+    if not cc.check_header('dxcapi.h')
+        extra_includes += 'dxc_lib/'
+    endif
     deps += dxc_lib
 endif
 librhi_sc = library('rhi_scpp', lib_src, include_directories: include_directories(includes + extra_includes), dependencies: deps)

@@ -112,7 +112,7 @@ int main(int argc, char** argv)
     }
     size_t num_files = names.size();
     auto cmp = RHI::ShaderCompiler::Compiler::New();
-    for(auto i : std::views::iota(static_cast<decltype(num_files)>(1), num_files))
+    for(auto i : std::views::iota(static_cast<decltype(num_files)>(0), num_files))
     {
         RHI::ShaderCompiler::ShaderSource src;
         src.source = std::filesystem::path(names[i]);

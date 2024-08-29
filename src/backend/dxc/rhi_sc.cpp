@@ -53,6 +53,7 @@ namespace RHI
                     case _1: return L"-O1";
                     case _2: return L"-O2";
                     case _3: return L"-O3";
+                    default: return L"";
                 }
             }
             std::vector<std::wstring> AsArgs(RHI::ShaderStage stg) const

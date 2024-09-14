@@ -6,7 +6,7 @@
 #include <string>
 #include <ranges>
 #include <string_view>
-RHI::ShaderCompiler::OptimizationLevel GetOptimizationLevel(argparse::ArgumentParser& parser)
+RHI::ShaderCompiler::OptimizationLevel GetOptimizationLevel(const argparse::ArgumentParser& parser)
 {
     if(parser["-ONone"] == true)
     {
@@ -30,11 +30,11 @@ RHI::ShaderCompiler::OptimizationLevel GetOptimizationLevel(argparse::ArgumentPa
     }
     return RHI::ShaderCompiler::OptimizationLevel::None;
 }
-RHI::ShaderStage GetShaderStage(argparse::ArgumentParser& parser)
+RHI::ShaderStage GetShaderStage(const argparse::ArgumentParser& parser)
 {
     auto stg = parser.get("-t");
-    std::transform(stg.begin(), stg.end(), stg.begin(),
-    [](unsigned char c){ return std::tolower(c); });
+    std::ranges::transform(stg, stg.begin(),
+                           [](const unsigned char c){ return std::tolower(c); });
     if (stg == "pixel")
         return RHI::ShaderStage::Pixel;
     else if (stg == "vertex")
@@ -50,19 +50,17 @@ RHI::ShaderStage GetShaderStage(argparse::ArgumentParser& parser)
     else
         return RHI::ShaderStage::None;
 }
-void AddMacroDefns(argparse::ArgumentParser& parser, std::unique_ptr<RHI::ShaderCompiler::CompileOptions>& args)
+void AddMacroDefns(argparse::ArgumentParser& parser, const std::unique_ptr<RHI::ShaderCompiler::CompileOptions>& args)
 {
-    auto macros = parser.get<std::vector<std::string>>("-D");
-    for(auto& macro : macros)
+    for(auto macros = parser.get<std::vector<std::string>>("-D"); auto& macro : macros)
     {
-        auto name = macro.find('=');
-        if(name == std::string::npos)
+        if(const auto name = macro.find('='); name == std::string::npos)
         {
             std::cout << "name = " << macro << std::endl;
             args->AddMacroDefinition(macro, std::nullopt);
         }
         else {
-            auto mac_name = std::string_view(macro.data(), name);
+            const auto mac_name = std::string_view(macro.data(), name);
             auto mac_value = std::string_view(macro.data() + name + 1, macro.size() - name -1);
             args->AddMacroDefinition(mac_name, mac_value);
         }
@@ -96,31 +94,30 @@ int main(int argc, char** argv)
     grp.add_argument("-O3").flag().help("Optimization Level 3");
     grp.add_argument("-OFast").flag().help("Same as -O3");
     parser.parse_args(argc, argv);
-    auto args = RHI::ShaderCompiler::CompileOptions::New();
+    const auto args = RHI::ShaderCompiler::CompileOptions::New();
     if (parser["-g"] == true)
     {
         args->EnableDebuggingSymbols();
     }
     AddMacroDefns(parser, args);
     args->SetOptimizationLevel(GetOptimizationLevel(parser));
-    auto out_files = parser.get<std::vector<std::string>>("-o");
-    auto names = parser.get<std::vector<std::string>>("-i");
+    const auto out_files = parser.get<std::vector<std::string>>("-o");
+    const auto names = parser.get<std::vector<std::string>>("-i");
     if(names.size() != out_files.size())
     {
         std::cerr << "Input and Output files must be the same length" << std::endl;
         return 1;
     }
     size_t num_files = names.size();
-    auto cmp = RHI::ShaderCompiler::Compiler::New();
-    for(auto i : std::views::iota(static_cast<decltype(num_files)>(0), num_files))
+    const auto cmp = RHI::ShaderCompiler::Compiler::New();
+    for(const auto i : std::views::iota(static_cast<decltype(num_files)>(0), num_files))
     {
         RHI::ShaderCompiler::ShaderSource src;
         src.source = std::filesystem::path(names[i]);
         src.stage = GetShaderStage(parser);
-        auto res = cmp->CompileToFile(src, args, out_files[i]);
-        if (res.error != RHI::ShaderCompiler::CompilationError::None)
+        if (const auto [warning_count, messages, error] = cmp->CompileToFile(src, args, out_files[i]); error != RHI::ShaderCompiler::CompilationError::None)
         {
-            std::cerr << res.messages;
+            std::cerr << messages;
             return 1;
         }
     }

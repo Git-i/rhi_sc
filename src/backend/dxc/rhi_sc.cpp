@@ -164,6 +164,7 @@ namespace RHI
             }
             CComPtr<IDxcResult> result;
             cmp->compiler->Compile(&buffer, sc_opt->AsRawArgs(args).data(), args.size(), cmp->includeHandler, IID_PPV_ARGS(&result));
+            ret_val.error = CompilationError::None;
             return result;
         }
         CompilationResult Compiler::CompileToFile(const ShaderSource& source, const std::unique_ptr<CompileOptions>& opt, const std::filesystem::path& output)

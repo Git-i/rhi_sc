@@ -1,4 +1,6 @@
 project('rhi_sc', 'cpp', default_options: ['cpp_std=c++20'])
+pymodule = import('python3')
+python3 = pymodule.find_python()
 rhi_dep = dependency('pistachio_rhi')
 deps = [rhi_dep]
 
@@ -21,6 +23,7 @@ elif get_option('compiler-backend') == 'dxc'
     dxc_lib = cc.find_library('dxcompiler', dirs: meson.current_source_dir() /'dxc_lib/')
     if not cc.check_header('dxcapi.h')
         extra_includes += 'dxc_lib/'
+        extra_includes += run_command(python3, '-c', 'import os; print(os.environ["VULKAN_SDK"])').stdout().strip() / 'include'/'dxc'
     endif
     deps += dxc_lib
 endif

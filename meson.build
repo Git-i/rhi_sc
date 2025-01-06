@@ -20,12 +20,10 @@ if get_option('compiler-backend') == 'shaderc'
 elif get_option('compiler-backend') == 'dxc'
     lib_src += 'src/backend/dxc/rhi_sc.cpp'
     cc = meson.get_compiler('cpp')
-    dxc_lib = cc.find_library('dxcompiler', dirs: meson.current_source_dir() /'dxc_lib/')
-    if not cc.check_header('dxcapi.h')
+    if not cc.has_header('dxcapi.h')
         extra_includes += 'dxc_lib/'
         extra_includes += run_command(python3, '-c', 'import os; print(os.environ["VULKAN_SDK"])').stdout().strip() / 'include'/'dxc'
     endif
-    deps += dxc_lib
 endif
 librhi_sc = library('rhi_scpp', lib_src, include_directories: include_directories(includes + extra_includes), dependencies: deps)
 

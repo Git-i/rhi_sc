@@ -1,7 +1,12 @@
 #include "include/rhi_sc.h"
 #include "FormatsAndTypes.h"
 #include "RootSignature.h"
+//for CComptr
+#ifndef WIN32
 #include "WinAdapter.h"
+#else
+#include "atlbase.h" 
+#endif // !WIN32
 #include "dxcapi.h"
 #include <algorithm>
 #include <bit>
@@ -17,9 +22,9 @@ namespace RHI
     {
         std::wstring to_wstring(const std::string& stringToConvert)
         {
-            std::wstring wideString = 
-                std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(stringToConvert);
-            return wideString;
+            std::wstring ws(stringToConvert.size(), L' ');
+            ws.resize(std::mbstowcs(&ws[0], stringToConvert.c_str(), stringToConvert.size()));
+            return ws;
         }
         class DXCCompileOptions : public CompileOptions
         {
@@ -183,7 +188,7 @@ namespace RHI
                 return ret_val;
             }
             CComPtr<IDxcBlob> pShader = nullptr;
-            CComPtr<IDxcBlobWide> pShaderName = nullptr;
+            CComPtr<IDxcBlobUtf16> pShaderName = nullptr;
             result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&pShader), &pShaderName);
             if(!pShader)
             {
@@ -226,7 +231,7 @@ namespace RHI
                 return ret_val;
             }
             CComPtr<IDxcBlob> pShader = nullptr;
-            CComPtr<IDxcBlobWide> pShaderName = nullptr;
+            CComPtr<IDxcBlobUtf16> pShaderName = nullptr;
             result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&pShader), &pShaderName);
             if(!pShader)
             {

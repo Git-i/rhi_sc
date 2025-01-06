@@ -25,6 +25,9 @@ elif get_option('compiler-backend') == 'dxc'
         extra_includes += run_command(python3, '-c', 'import os; print(os.environ["VULKAN_SDK"])').stdout().strip() / 'include'/'dxc'
     endif
 endif
+
+add_project_arguments('-DRHI_SC_DLL', language: 'cpp')
+
 librhi_sc = library('rhi_scpp', lib_src, include_directories: include_directories(includes + extra_includes), dependencies: deps)
 
 rhi_sc_dep = declare_dependency(include_directories: include_directories(includes), link_with: librhi_sc, dependencies: deps)

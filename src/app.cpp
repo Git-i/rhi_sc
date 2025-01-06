@@ -93,6 +93,11 @@ int main(int argc, char** argv)
     grp.add_argument("-O2").flag().help("Optimization Level 2");
     grp.add_argument("-O3").flag().help("Optimization Level 3");
     grp.add_argument("-OFast").flag().help("Same as -O3");
+    if (argc == 1)
+    {
+        parser.print_help();
+        return 0;
+    }
     parser.parse_args(argc, argv);
     const auto args = RHI::ShaderCompiler::CompileOptions::New();
     if (parser["-g"] == true)

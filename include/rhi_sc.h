@@ -8,6 +8,15 @@
 #include "Core.h"
 #include "FormatsAndTypes.h"
 #include "RootSignature.h"
+#ifdef WIN32
+#ifdef RHI_SC_DLL
+#define RHI_SC_API __declspec(dllexport)
+#else
+#define RHI_SC_API __declspec(dllimport)
+#endif
+#else
+#define RHI_SC_API
+#endif
 namespace RHI
 {
     namespace ShaderCompiler
@@ -30,7 +39,7 @@ namespace RHI
         {
             None, _1, _2, _3, Max=_3
         };
-        class CompileOptions {
+        class RHI_SC_API CompileOptions {
         protected:
             DECL_CLASS_CONSTRUCTORS(CompileOptions);
         public:
@@ -50,7 +59,7 @@ namespace RHI
             std::variant<std::filesystem::path, StringSource> source;
             ShaderStage stage;
         };
-        class Compiler {
+        class RHI_SC_API Compiler {
         protected:
             DECL_CLASS_CONSTRUCTORS(Compiler);
         public:

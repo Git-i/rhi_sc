@@ -5,7 +5,8 @@
 #ifndef WIN32
 #include "WinAdapter.h"
 #else
-#include "atlbase.h" 
+#include "atlbase.h"
+#pragma comment(lib, "dxcompiler")
 #endif // !WIN32
 #include "dxcapi.h"
 #include <algorithm>

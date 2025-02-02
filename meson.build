@@ -27,6 +27,9 @@ elif get_option('compiler-backend') == 'dxc'
 endif
 
 add_project_arguments('-DRHI_SC_DLL', language: 'cpp')
+if get_option('using_dll')
+    add_project_arguments('-DUSE_DLL', language: 'cpp')
+endif
 
 librhi_sc = library('rhi_scpp', lib_src, include_directories: include_directories(includes + extra_includes), dependencies: deps)
 

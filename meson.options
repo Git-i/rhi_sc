@@ -1,1 +1,2 @@
 option('compiler-backend', type:'combo', choices: ['dxc', 'shaderc'], value:'dxc')
+option('using_dll', type:'boolean', value: false)

@@ -196,7 +196,7 @@ namespace RHI
                 ret_val.error = CompilationError::Error;   
                 return ret_val;
             }
-            std::ofstream file(output);
+            std::ofstream file(output, std::ios::trunc | std::ios::binary);
             uint32_t spvSize = pShader->GetBufferSize();
             std::span spvSizeBytes = std::as_writable_bytes(std::span(&spvSize, 1));
             if(std::endian::native != std::endian::little)

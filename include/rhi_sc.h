@@ -8,7 +8,7 @@
 #include "Core.h"
 #include "FormatsAndTypes.h"
 #include "RootSignature.h"
-#ifdef WIN32
+#if defined(_MSC_VER) && defined(USE_DLL)
 #ifdef RHI_SC_DLL
 #define RHI_SC_API __declspec(dllexport)
 #else
